@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SJ LEE의 방</title>
+<meta name="description" content="새벽 3시 17분, 잠든 SJ LEE의 방에 몰래 들어가 이 사람이 누군지 알아내는 인터랙티브 자기소개.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --night:#05050c;
+    --paper:#fbf6e9;
+    --ink:#2a2420;
+    --accent:#ffd36b;
+    --danger:#ff3b3b;
+    --r: clamp(110px, 17vmin, 200px);
+    --x: 50vw; --y: 55vh;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--night);color:#eee;overflow:hidden;
+    font-family:"Noto Sans KR",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none}
+  button{font-family:inherit;cursor:pointer}
+
+  /* ---------- stage ---------- */
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;touch-action:none}
+  html,body{overscroll-behavior:none}
+  #stage.shake{animation:shake .5s linear 3}
+  @keyframes shake{
+    0%,100%{transform:translate(0,0)}20%{transform:translate(-14px,6px)}40%{transform:translate(12px,-8px)}
+    60%{transform:translate(-10px,-4px)}80%{transform:translate(8px,8px)}}
+  #room{width:100%;height:100%;display:block}
+  .hot{cursor:pointer}
+  .hot .hit{fill:transparent}
+  .hot:hover > *:not(.hit){filter:drop-shadow(0 0 10px rgba(255,225,150,.9))}
+  .hot.found{opacity:.85}
+  .check{font:700 34px "Gaegu";fill:#7dff9b;pointer-events:none;opacity:0;transition:opacity .4s}
+  .hot.found + .check, .check.on{opacity:1}
+
+  #drawerFront{transition:transform .35s ease-out;transform-box:fill-box}
+  #drawer.open #drawerFront{transform:translateY(10px) scale(1.05,1.08)}
+  #drawerInner{opacity:0;transition:opacity .3s}
+  #drawer.open #drawerInner{opacity:1}
+  #laptopScreen{transition:fill .4s}
+  #laptop.found #laptopScreen{fill:#2d4a7a}
+
+  /* sleeper */
+  #blanket{transform-box:fill-box;transform-origin:50% 100%;animation:breathe 3.8s ease-in-out infinite;transition:transform .5s}
+  @keyframes breathe{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.05)}}
+  #head{transform-box:fill-box;transform-origin:center;transition:transform .45s cubic-bezier(.5,1.8,.5,1)}
+  #sleeper.flip #head{transform:scaleX(-1) rotate(-8deg)}
+  #sleeper.flip #blanket{animation:none;transform:translateX(-14px) scaleY(1.08) skewX(-4deg)}
+  #sleeper.tossing{animation:toss .8s ease-in-out}
+  @keyframes toss{0%,100%{transform:translate(0,0)}25%{transform:translate(-8px,-10px) rotate(-1deg)}55%{transform:translate(8px,-4px) rotate(1deg)}}
+  #torso{opacity:0;transition:opacity .2s}
+  #faceAngry,#anger{opacity:0}
+  #sleeper.awake #blanket{animation:none;transform:translate(-70px,40px) rotate(-7deg)}
+  #sleeper.awake #head{transform:translate(-45px,-95px) rotate(-6deg) scale(1.15)}
+  #sleeper.awake #torso{opacity:1}
+  #sleeper.awake #faceSleep{opacity:0}
+  #sleeper.awake #faceAngry,#sleeper.awake #anger{opacity:1}
+  #sleeper.awake #anger{animation:pulse .3s infinite alternate}
+  @keyframes pulse{to{transform:scale(1.25)}}
+  #anger{transform-box:fill-box;transform-origin:center}
+  .z{font:700 30px "Gaegu";fill:#cfe0ff;opacity:0;animation:zz 3.6s infinite}
+  .z:nth-of-type(2){animation-delay:1.2s;font-size:38px}
+  .z:nth-of-type(3){animation-delay:2.4s;font-size:46px}
+  @keyframes zz{0%{opacity:0;transform:translate(0,0)}20%{opacity:.9}100%{opacity:0;transform:translate(40px,-90px)}}
+  #zzz.hide .z{animation:none;opacity:0}
+
+  #door.ready > *:not(.hit){filter:drop-shadow(0 0 14px #9effb4)}
+  #doorGlow{opacity:0;transition:opacity .6s}
+  #door.ready #doorGlow{opacity:1;animation:blink 1.2s infinite alternate}
+  @keyframes blink{to{opacity:.3}}
+
+  /* ---------- darkness ---------- */
+  #dark{position:fixed;inset:0;pointer-events:none;z-index:5;transition:opacity .9s;
+    background:radial-gradient(circle at var(--x) var(--y),
+      rgba(255,236,190,.10) 0, rgba(0,0,0,0) calc(var(--r)*.55),
+      rgba(5,5,12,.55) calc(var(--r)*.85), rgba(5,5,12,.95) var(--r))}
+  #blackout{position:fixed;inset:0;pointer-events:none;z-index:6;background:#020206;opacity:0;transition:opacity .25s}
+  body.freeze #blackout{opacity:.93}
+  body.lit #dark{opacity:0}
+  #redflash{position:fixed;inset:0;pointer-events:none;z-index:7;background:var(--danger);opacity:0}
+  #redflash.go{animation:flash .9s ease-out}
+  @keyframes flash{0%{opacity:.75}100%{opacity:0}}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;
+    align-items:flex-start;gap:8px;padding:max(12px,env(safe-area-inset-top)) 16px 0;pointer-events:none}
+  .pill{pointer-events:auto;background:rgba(18,18,30,.78);border:1px solid rgba(255,255,255,.12);
+    border-radius:14px;padding:8px 12px;backdrop-filter:blur(6px);font-size:14px}
+  #stats{display:flex;flex-direction:column;gap:6px;min-width:170px}
+  #meterWrap{display:flex;align-items:center;gap:8px;font-size:12px;color:#bbb}
+  #meter{flex:1;height:8px;border-radius:6px;background:#2b2b3d;overflow:hidden}
+  #meterFill{height:100%;width:0;background:linear-gradient(90deg,#6be38a,#ffd36b 60%,#ff4b4b);transition:width .15s}
+  #meter.hot{animation:meterBlink .4s infinite alternate}
+  @keyframes meterBlink{to{box-shadow:0 0 0 2px var(--danger)}}
+  #rightBtns{display:flex;gap:8px}
+  .iconBtn{pointer-events:auto;background:rgba(18,18,30,.78);color:#fff;border:1px solid rgba(255,255,255,.12);
+    border-radius:12px;padding:8px 12px;font-size:15px}
+  #dossier{position:fixed;top:calc(max(12px,env(safe-area-inset-top)) + 52px);right:16px;z-index:10;width:min(300px,calc(100vw - 32px));
+    background:var(--paper);color:var(--ink);border-radius:6px;padding:14px 16px;font-family:"Gaegu";font-size:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.6);transform:rotate(1deg);display:none}
+  #dossier.show{display:block}
+  #dossier h3{margin:0 0 6px;font-size:24px;border-bottom:2px dashed #c9b88f}
+  #dossier li{list-style:none;padding:2px 0}
+  #dossier ul{margin:0;padding:0}
+  .unknown{color:#a99c80}
+
+  #hint{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:10;
+    pointer-events:none;font-size:14px;color:#ddd;background:rgba(18,18,30,.7);padding:8px 14px;border-radius:20px;
+    white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis;transition:opacity .4s}
+
+  #warn{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%) scale(.6);z-index:12;pointer-events:none;
+    font:400 clamp(34px,7vw,72px) "Black Han Sans";color:#fff;text-shadow:0 0 18px #ff4b4b,3px 3px 0 #000;
+    opacity:0;transition:all .2s;text-align:center;line-height:1.1}
+  #warn small{display:block;font:700 clamp(16px,2.4vw,22px) "Noto Sans KR";text-shadow:0 2px 6px #000;margin-top:8px}
+  #warn.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+  .bubble{position:fixed;z-index:11;pointer-events:none;background:#fff;color:#222;font:700 22px "Gaegu";
+    padding:8px 14px;border-radius:18px;transform:translate(-50%,-100%);opacity:0;transition:opacity .3s;white-space:nowrap}
+  .bubble::after{content:"";position:absolute;left:50%;bottom:-10px;border:10px solid transparent;border-top-color:#fff;border-bottom:0;transform:translateX(-50%)}
+  .bubble.show{opacity:1}
+  #shout{font:400 clamp(26px,4.6vw,48px) "Black Han Sans";color:#fff;background:var(--danger);border:4px solid #000;
+    border-radius:24px;padding:14px 22px;white-space:normal;width:max-content;max-width:min(90vw,720px);text-align:center;line-height:1.25;
+    box-shadow:6px 6px 0 #000}
+  #shout::after{border-top-color:var(--danger)}
+  #shout.show{animation:jitter .08s infinite}
+  @keyframes jitter{50%{margin-left:3px;margin-top:-2px}}
+
+  #toast{position:fixed;left:50%;bottom:calc(max(16px,env(safe-area-inset-bottom)) + 48px);transform:translateX(-50%);z-index:12;
+    background:#ffd36b;color:#222;font:700 15px "Noto Sans KR";padding:8px 16px;border-radius:12px;opacity:0;transition:opacity .3s;pointer-events:none;
+    max-width:calc(100vw - 32px);text-align:center}
+  #toast.show{opacity:1}
+
+  /* ---------- modal ---------- */
+  .layer{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.6)}
+  .layer.show{display:flex}
+  .card{background:var(--paper);color:var(--ink);border-radius:8px;width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;
+    padding:22px 22px 18px;box-shadow:0 20px 50px rgba(0,0,0,.7);transform:rotate(-1deg);animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+  @keyframes pop{from{transform:scale(.7) rotate(-6deg);opacity:0}}
+  .card h2{margin:0 0 4px;font:400 26px "Black Han Sans"}
+  .card .where{font-size:13px;color:#8a7d63;margin-bottom:14px}
+  .card .story{font:400 21px/1.45 "Gaegu";margin:14px 0}
+  .card .story b{background:linear-gradient(transparent 55%,#ffe27a 55%)}
+  .fact{display:flex;gap:8px;align-items:center;background:#2a2420;color:#ffe9a8;border-radius:8px;padding:10px 12px;font-weight:700;font-size:15px}
+  .card .actions{display:flex;justify-content:flex-end;margin-top:16px}
+  .btn{background:#2a2420;color:#fff;border:0;border-radius:10px;padding:10px 18px;font-size:15px;font-weight:700}
+  .btn.ghost{background:transparent;color:#2a2420;border:2px solid #2a2420}
+  .art{border-radius:6px;padding:14px;display:flex;justify-content:center}
+
+  /* item art */
+  .polaroid{background:#fff;padding:10px 10px 34px;box-shadow:0 4px 12px rgba(0,0,0,.25);transform:rotate(3deg);position:relative;width:200px}
+  .polaroid .ph{height:150px;background:linear-gradient(#ffb36b,#ff7b8a);display:flex;align-items:center;justify-content:center;font-size:70px}
+  .polaroid span{position:absolute;bottom:6px;left:0;right:0;text-align:center;font:700 20px "Gaegu"}
+  .screen{width:260px;background:#1c2b47;border:10px solid #333;border-radius:8px 8px 0 0;padding:12px;color:#cfe0ff;font-size:12px;position:relative}
+  .screen .bar{background:#2f4572;padding:4px 6px;border-radius:3px;margin-bottom:8px;word-break:break-all}
+  .screen .slide{background:#fff;color:#222;height:70px;border-radius:3px;display:flex;align-items:center;justify-content:center;font:400 18px "Black Han Sans"}
+  .postit{position:absolute;right:-18px;bottom:-14px;background:#fff27a;color:#333;font:700 17px "Gaegu";padding:8px;width:120px;transform:rotate(6deg);box-shadow:2px 3px 6px rgba(0,0,0,.3)}
+  .stamps{display:grid;grid-template-columns:repeat(5,38px);gap:6px;background:#fff;padding:12px;border:2px solid #333;border-radius:4px}
+  .stamps i{width:38px;height:38px;border-radius:50%;border:2px dashed #ccc;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:20px}
+  .stamps i.s{border:2px solid #d33;color:#d33;transform:rotate(-12deg);font:700 13px "Noto Sans KR"}
+  .poster-img{width:min(240px,100%);height:auto;border:6px solid #f4e3b5;box-shadow:0 4px 12px rgba(0,0,0,.3);transform:rotate(-1.5deg)}
+  .cal{background:#fff;border:2px solid #333;width:240px}
+  .cal header{background:#d33;color:#fff;text-align:center;font:400 18px "Black Han Sans";padding:4px}
+  .cal .g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;padding:6px}
+  .cal .g i{height:22px;border-radius:2px}
+  .cal .sat{font:700 16px "Gaegu";padding:2px 10px 8px;color:#333}
+  .books{display:flex;flex-direction:column;align-items:center;gap:14px}
+  .books .row{display:flex;align-items:flex-end;gap:3px;border-bottom:8px solid #7a4e34;padding:0 6px}
+  .books .row i{width:30px;color:#fff;font:700 12px "Noto Sans KR";font-style:normal;writing-mode:vertical-rl;
+    display:flex;align-items:center;justify-content:center;border-radius:2px 2px 0 0;overflow:hidden;white-space:nowrap}
+  .books .row b{font-size:46px;line-height:1;margin-left:6px}
+  .books .pennant{align-self:flex-start;background:#8b1c2c;color:#fff;font-size:22px;padding:4px 30px 4px 10px;
+    clip-path:polygon(0 0,100% 50%,0 100%);transform:rotate(-6deg)}
+  .crumple{display:flex;flex-direction:column;gap:6px;width:100%}
+  .crumple div{background:#fff;border:1px solid #ccc;padding:6px 10px;font:700 18px "Gaegu";transform:rotate(-1deg)}
+  .crumple div:nth-child(even){transform:rotate(1.2deg)}
+  .crumple s{color:#888}
+
+  /* ---------- intro / ending ---------- */
+  #intro{background:radial-gradient(circle at 50% 40%,#151530,#030308 70%)}
+  .introBox{text-align:center;max-width:520px;word-break:keep-all}
+  .card{word-break:keep-all}
+  .clock{font:400 clamp(44px,9vw,80px) "Black Han Sans";color:#7dff9b;text-shadow:0 0 18px rgba(125,255,155,.6);letter-spacing:4px}
+  .introBox p{font:400 clamp(20px,3.6vw,26px)/1.5 "Gaegu";color:#e8e8f0;margin:10px 0;opacity:0;animation:fadeUp .6s forwards}
+  .introBox p:nth-of-type(1){animation-delay:.4s}.introBox p:nth-of-type(2){animation-delay:1.1s}.introBox p:nth-of-type(3){animation-delay:1.8s}
+  .introBox p b{color:#ff6b6b}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  #startBtn{margin-top:22px;background:var(--accent);color:#222;border:0;border-radius:40px;padding:14px 30px;
+    font:400 22px "Black Han Sans";opacity:0;animation:fadeUp .6s 2.5s forwards;box-shadow:0 0 30px rgba(255,211,107,.4)}
+  #startBtn:hover{transform:scale(1.05)}
+  .sound{font-size:13px;color:#888;margin-top:14px;opacity:0;animation:fadeUp .6s 2.8s forwards}
+
+  #ending .card{width:min(520px,100%);transform:none}
+  #ending h2{font-size:34px}
+  #endList{margin:10px 0;padding:0;font:400 20px "Gaegu"}
+  #endList li{list-style:none;padding:3px 0;border-bottom:1px dashed #d8cba9}
+  .namecard{margin-top:14px;background:#2a2420;color:#fbf6e9;border-radius:10px;padding:18px}
+  .namecard .nm{font:400 30px "Black Han Sans";letter-spacing:1px}
+  .namecard .role{color:#ffd36b;font-weight:700;margin-bottom:8px}
+  .namecard .tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .namecard .tags span{background:#4a3f37;border-radius:20px;padding:3px 10px;font-size:13px}
+  .namecard p{font:400 19px/1.5 "Gaegu";margin:8px 0 0}
+  #ending .actions{gap:8px;flex-wrap:wrap}
+
+  @media (max-width:600px){
+    #hint{font-size:12px}
+    #stats{min-width:140px}
+    .pill{font-size:13px}
+  }
+</style>
+</head>
+<body>
+
+<div id="stage">
+<svg id="room" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid meet" aria-label="잠든 SJ LEE의 방">
+  <defs>
+    <linearGradient id="wallG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a4568"/><stop offset="1" stop-color="#4b5478"/></linearGradient>
+    <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1a3d"/><stop offset="1" stop-color="#26386b"/></linearGradient>
+    <pattern id="planks" width="160" height="40" patternUnits="userSpaceOnUse">
+      <rect width="160" height="40" fill="#4a3428"/><path d="M0 39.5H160M80 0V40" stroke="#38261d" stroke-width="2"/>
+    </pattern>
+    <pattern id="blanketP" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#e0685a"/><rect width="20" height="40" fill="#d65a4d"/>
+    </pattern>
+  </defs>
+
+  <!-- wall & floor -->
+  <rect width="1600" height="660" fill="url(#wallG)"/>
+  <rect y="660" width="1600" height="240" fill="url(#planks)"/>
+  <rect y="650" width="1600" height="14" fill="#2c2433"/>
+  <!-- moonlight on floor -->
+  <polygon points="650,340 900,340 1060,900 520,900" fill="#bcd0ff" opacity=".06"/>
+  <ellipse cx="820" cy="790" rx="260" ry="55" fill="#6a4d7a" opacity=".7"/>
+  <ellipse cx="820" cy="790" rx="210" ry="40" fill="none" stroke="#8d6aa0" stroke-width="5" stroke-dasharray="14 10"/>
+
+  <!-- window -->
+  <g>
+    <rect x="630" y="70" width="280" height="270" rx="6" fill="#d8d0c0"/>
+    <rect x="645" y="85" width="250" height="240" fill="url(#skyG)"/>
+    <circle cx="830" cy="140" r="30" fill="#fff6cf"/><circle cx="842" cy="132" r="26" fill="#22336a"/>
+    <g fill="#fff"><circle cx="680" cy="120" r="2"/><circle cx="740" cy="200" r="2.5"/><circle cx="700" cy="270" r="1.8"/><circle cx="860" cy="240" r="2"/><circle cx="780" cy="110" r="1.5"/></g>
+    <path d="M770 85V325M645 205H895" stroke="#d8d0c0" stroke-width="10"/>
+    <path d="M600 60 Q640 200 610 350 L660 350 Q690 200 660 60Z" fill="#6c4e8f"/>
+    <path d="M940 60 Q900 200 930 350 L880 350 Q850 200 880 60Z" fill="#6c4e8f"/>
+    <rect x="590" y="52" width="360" height="12" rx="6" fill="#2a2030"/>
+  </g>
+
+  <!-- door (exit) -->
+  <g id="door" class="hot" data-id="door">
+    <rect class="hit" x="30" y="140" width="190" height="520"/>
+    <rect x="40" y="150" width="170" height="505" fill="#6e4a33"/>
+    <rect x="58" y="172" width="134" height="200" rx="4" fill="none" stroke="#5b3c29" stroke-width="6"/>
+    <rect x="58" y="400" width="134" height="220" rx="4" fill="none" stroke="#5b3c29" stroke-width="6"/>
+    <circle cx="190" cy="410" r="9" fill="#e0b85a"/>
+    <text id="doorGlow" x="125" y="130" text-anchor="middle" font-family="Black Han Sans" font-size="34" fill="#9effb4">EXIT ▼</text>
+  </g>
+
+  <!-- poster: theatre -->
+  <g id="poster" class="hot" data-id="poster">
+    <rect class="hit" x="320" y="60" width="210" height="300"/>
+    <g transform="rotate(-2 425 200)">
+      <rect x="330" y="70" width="190" height="264" fill="#f4e3b5"/>
+      <image href="poster.png" x="340" y="80" width="170" height="224" preserveAspectRatio="xMidYMid slice"/>
+      <rect x="340" y="80" width="170" height="224" fill="#0b0b20" opacity=".15"/>
+      <circle cx="350" cy="88" r="6" fill="#d33"/>
+    </g>
+  </g>
+  <text class="check" data-for="poster" x="510" y="80">✓</text>
+
+  <!-- calendar: ENTJ -->
+  <g id="calendar" class="hot" data-id="calendar">
+    <rect class="hit" x="955" y="90" width="175" height="210"/>
+    <rect x="965" y="100" width="155" height="190" fill="#fafafa"/>
+    <rect x="965" y="100" width="155" height="34" fill="#d33"/>
+    <text x="1042" y="125" text-anchor="middle" font-family="Black Han Sans" font-size="20" fill="#fff">OCTOBER</text>
+    <g id="calGrid"></g>
+    <circle cx="1042" cy="94" r="5" fill="#333"/>
+  </g>
+  <text class="check" data-for="calendar" x="1115" y="110">✓</text>
+
+  <!-- bookshelf: university & major -->
+  <g id="shelf" class="hot" data-id="shelf">
+    <rect class="hit" x="1170" y="265" width="320" height="185"/>
+    <rect x="1185" y="415" width="295" height="14" rx="3" fill="#7a4e34"/>
+    <path d="M1205 429 l0 22 l16 0 M1460 429 l0 22 l-16 0" stroke="#5a3d30" stroke-width="6" fill="none"/>
+    <rect x="1200" y="335" width="24" height="80" fill="#8b2f2f"/>
+    <rect x="1226" y="345" width="20" height="70" fill="#2f4f8b"/>
+    <rect x="1248" y="328" width="26" height="87" fill="#c9a227"/>
+    <rect x="1276" y="350" width="18" height="65" fill="#3d6b4f"/>
+    <rect x="1296" y="340" width="22" height="75" fill="#5b3d7a"/>
+    <rect x="1322" y="348" width="22" height="67" fill="#b5574b" transform="rotate(14 1333 415)"/>
+    <rect x="1305" y="322" width="34" height="22" rx="2" fill="#e9e5d8" transform="rotate(-8 1322 333)"/>
+    <path d="M1205 355h14M1205 362h14M1230 365h12M1253 350h16M1253 357h16" stroke="#fff" stroke-width="2" opacity=".6"/>
+    <g transform="translate(1400 362)">
+      <ellipse cx="0" cy="30" rx="22" ry="24" fill="#c23b3b"/>
+      <circle cx="0" cy="0" r="15" fill="#c23b3b"/>
+      <circle cx="0" cy="2" r="10" fill="#f1c7a0"/>
+      <ellipse cx="0" cy="32" rx="12" ry="10" fill="#ffd36b"/>
+      <circle cx="-3" cy="1" r="1.5" fill="#222"/><circle cx="3" cy="1" r="1.5" fill="#222"/>
+    </g>
+    <g transform="rotate(-6 1250 300)">
+      <path d="M1200 282 L1300 300 L1200 318 Z" fill="#8b1c2c"/>
+      <rect x="1194" y="276" width="7" height="48" rx="3" fill="#5a3d30"/>
+      <text x="1235" y="309" text-anchor="middle" font-size="22">🐯</text>
+    </g>
+    <g transform="translate(1445 380)">
+      <ellipse cx="0" cy="18" rx="13" ry="16" fill="#2f6b8b"/>
+      <circle cx="0" cy="0" r="9" fill="#2f6b8b"/><circle cx="0" cy="1" r="6" fill="#f1c7a0"/>
+    </g>
+  </g>
+  <text class="check" data-for="shelf" x="1470" y="320">✓</text>
+
+  <!-- desk -->
+  <g>
+    <rect x="245" y="515" width="430" height="24" rx="4" fill="#8a5a3c"/>
+    <rect x="262" y="539" width="22" height="300" fill="#6d452e"/>
+    <rect x="455" y="539" width="200" height="300" fill="#7a4e34"/>
+    <rect x="467" y="680" width="176" height="60" rx="4" fill="#8f6043"/><circle cx="555" cy="710" r="6" fill="#e0b85a"/>
+    <rect x="467" y="755" width="176" height="60" rx="4" fill="#8f6043"/><circle cx="555" cy="785" r="6" fill="#e0b85a"/>
+  </g>
+  <!-- drawer: naengmyeon -->
+  <g id="drawer" class="hot" data-id="drawer">
+    <rect class="hit" x="460" y="545" width="190" height="125"/>
+    <rect id="drawerInner" x="467" y="555" width="176" height="110" fill="#1c120c"/>
+    <g id="drawerFront">
+      <rect x="467" y="555" width="176" height="110" rx="4" fill="#9a6849"/>
+      <rect x="520" y="600" width="70" height="12" rx="6" fill="#e0b85a"/>
+    </g>
+  </g>
+  <text class="check" data-for="drawer" x="630" y="580">✓</text>
+
+  <!-- lamp -->
+  <g>
+    <ellipse cx="300" cy="512" rx="34" ry="8" fill="#333"/>
+    <path d="M300 510 L285 430 L330 395" stroke="#444" stroke-width="7" fill="none"/>
+    <path d="M310 380 L370 410 L345 440 Z" fill="#2f8f6b"/>
+  </g>
+
+  <!-- laptop: ad planner -->
+  <g id="laptop" class="hot" data-id="laptop">
+    <rect class="hit" x="355" y="410" width="180" height="115"/>
+    <path d="M362 515 H528 L520 507 H370 Z" fill="#9aa0aa"/>
+    <rect x="378" y="420" width="134" height="88" rx="5" fill="#4b5059"/>
+    <rect id="laptopScreen" x="384" y="426" width="122" height="76" fill="#1b2840"/>
+    <rect x="392" y="434" width="80" height="6" fill="#5d7bb5"/>
+    <rect x="392" y="448" width="104" height="38" fill="#e8ecf5" opacity=".85"/>
+    <text x="444" y="473" text-anchor="middle" font-family="Black Han Sans" font-size="13" fill="#333">v27 최종</text>
+    <rect x="490" y="486" width="22" height="20" fill="#fff27a" transform="rotate(8 500 496)"/>
+  </g>
+  <text class="check" data-for="laptop" x="520" y="430">✓</text>
+
+  <!-- photo frame: name -->
+  <g id="photo" class="hot" data-id="photo">
+    <rect class="hit" x="550" y="440" width="85" height="80"/>
+    <rect x="560" y="448" width="66" height="68" rx="3" fill="#c8a165" transform="rotate(4 593 482)"/>
+    <g transform="rotate(4 593 482)">
+      <rect x="567" y="455" width="52" height="54" fill="#ffb36b"/>
+      <circle cx="593" cy="475" r="9" fill="#f1c7a0"/><path d="M584 472 Q593 460 602 472" fill="#2b1f1a"/>
+      <rect x="583" y="485" width="20" height="22" rx="6" fill="#4a6ea8"/>
+      <path d="M603 490 L612 478" stroke="#f1c7a0" stroke-width="4"/>
+    </g>
+  </g>
+  <text class="check" data-for="photo" x="625" y="450">✓</text>
+
+  <!-- trash can: bonus -->
+  <g id="trash" class="hot" data-id="trash">
+    <rect class="hit" x="680" y="730" width="120" height="140"/>
+    <path d="M690 770 H790 L780 865 H700 Z" fill="#5a6378"/>
+    <path d="M700 785 V855 M720 785 V855 M740 785 V855 M760 785 V855 M778 785 V855" stroke="#4a5266" stroke-width="3"/>
+    <circle cx="715" cy="765" r="16" fill="#f3f0e6"/><circle cx="745" cy="758" r="18" fill="#e9e5d8"/><circle cx="772" cy="767" r="14" fill="#f3f0e6"/>
+    <circle cx="820" cy="858" r="13" fill="#e9e5d8"/>
+    <path d="M708 760 l10 6 M740 752 l8 10 M768 762 l6 6" stroke="#bbb" stroke-width="2"/>
+  </g>
+  <text class="check" data-for="trash" x="790" y="760">✓</text>
+
+  <!-- bed -->
+  <g>
+    <rect x="1530" y="440" width="44" height="340" rx="12" fill="#5a3d30"/>
+    <rect x="1050" y="640" width="500" height="110" rx="14" fill="#6b4a3a"/>
+    <rect x="1065" y="745" width="22" height="70" fill="#5a3d30"/><rect x="1505" y="745" width="22" height="70" fill="#5a3d30"/>
+    <rect x="1060" y="595" width="475" height="70" rx="22" fill="#e9e4f3"/>
+  </g>
+  <!-- sleeper -->
+  <g id="sleeper" class="hot" data-id="sleeper">
+    <rect class="hit" x="1050" y="470" width="500" height="200"/>
+    <ellipse cx="1462" cy="600" rx="72" ry="28" fill="#fbf8ff"/>
+    <rect id="torso" x="1370" y="510" width="90" height="130" rx="30" fill="#6c8ebf"/>
+    <g id="head">
+      <circle cx="1455" cy="566" r="38" fill="#f1c7a0"/>
+      <path d="M1417 562 Q1418 520 1458 522 Q1498 524 1494 566 Q1482 540 1458 541 Q1430 543 1417 562Z" fill="#2b1f1a"/>
+      <g id="faceSleep">
+        <path d="M1435 570 q7 6 14 0 M1462 570 q7 6 14 0" stroke="#3a2a22" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <ellipse cx="1456" cy="588" rx="5" ry="4" fill="#b5574b"/>
+        <circle cx="1430" cy="582" r="6" fill="#ff9f9f" opacity=".5"/><circle cx="1482" cy="582" r="6" fill="#ff9f9f" opacity=".5"/>
+      </g>
+      <g id="faceAngry">
+        <path d="M1430 556 l16 7 M1482 556 l-16 7" stroke="#2b1f1a" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="1440" cy="572" r="7" fill="#fff"/><circle cx="1471" cy="572" r="7" fill="#fff"/>
+        <circle cx="1441" cy="572" r="2.5" fill="#111"/><circle cx="1470" cy="572" r="2.5" fill="#111"/>
+        <path d="M1440 586 q16 22 32 0 z" fill="#7a1f1f"/>
+      </g>
+      <text id="anger" x="1498" y="530" font-size="34">💢</text>
+    </g>
+    <path id="blanket" d="M1055 668 Q1058 600 1110 594 Q1170 566 1235 592 Q1300 574 1360 588 Q1395 570 1428 600 L1440 672 Z" fill="url(#blanketP)"/>
+    <g id="zzz"><text class="z" x="1490" y="520">z</text><text class="z" x="1500" y="510">z</text><text class="z" x="1510" y="500">Z</text></g>
+  </g>
+</svg>
+</div>
+
+<div id="dark"></div>
+<div id="blackout"></div>
+<div id="redflash"></div>
+
+<div id="hud">
+  <div class="pill" id="stats">
+    <div>🔦 단서 <b id="foundCount">0</b> / <span id="totalCount">7</span></div>
+    <div id="meterWrap">소음 <div id="meter"><div id="meterFill"></div></div></div>
+  </div>
+  <div id="rightBtns">
+    <button class="iconBtn" id="fileBtn" aria-label="수사 노트">📋 노트</button>
+    <button class="iconBtn" id="muteBtn" aria-label="소리 켜기/끄기">🔊</button>
+  </div>
+</div>
+<div id="dossier"><h3>📋 SJ LEE 수사 노트</h3><ul id="dossierList"></ul></div>
+<div id="hint">손전등으로 방을 비춰보고, 수상한 물건을 클릭하세요 🔦</div>
+<div id="warn"></div>
+<div id="toast"></div>
+<div class="bubble" id="talk"></div>
+<div class="bubble" id="shout"></div>
+
+<!-- clue modal -->
+<div class="layer" id="modal">
+  <div class="card" role="dialog" aria-modal="true">
+    <h2 id="mTitle"></h2>
+    <div class="where" id="mWhere"></div>
+    <div class="art" id="mArt"></div>
+    <div class="story" id="mStory"></div>
+    <div class="fact" id="mFact"></div>
+    <div class="actions"><button class="btn" id="mClose">조용히 내려놓기 🤫</button></div>
+  </div>
+</div>
+
+<!-- intro -->
+<div class="layer show" id="intro">
+  <div class="introBox">
+    <div class="clock">AM 03:17</div>
+    <p>여기는 <b style="color:#ffd36b">SJ LEE</b>의 방.</p>
+    <p>방을 뒤져서<br>이 사람이 <b style="color:#ffd36b">어떤 사람인지</b><br>알아내야 한다.</p>
+    <p>단, <b>절대 깨우지 말 것.</b></p>
+    <button id="startBtn">살금살금 들어가기 🔦</button>
+    <div class="sound">🔊 소리를 켜고 플레이하세요</div>
+  </div>
+</div>
+
+<!-- ending -->
+<div class="layer" id="ending">
+  <div class="card">
+    <h2 id="eTitle"></h2>
+    <div class="where" id="eSub"></div>
+    <div style="font-weight:700;font-size:14px">알아낸 것 <span id="eCount"></span></div>
+    <ul id="endList"></ul>
+    <div class="namecard">
+      <div class="nm">SJ LEE</div>
+      <div class="role">광고기획자</div>
+      <div class="tags"><span>#ENTJ</span><span>#평양냉면_슴슴파</span><span>#노어노문학</span><span>#과학기술학</span><span>#연극반_개의심장</span><span>#v27까지_가는_사람</span></div>
+      <p>평양냉면처럼 슴슴해 보여도<br>
+      끝맛은 깊은 기획을 합니다.<br>
+      러시아 문학으로 사람을,<br>
+      과학기술학으로<br>
+      세상이 바뀌는 방식을 공부했고,<br>
+      연극반에서 무대 위 3분을 위해<br>
+      석 달을 준비하는 법을 배웠어요.<br>
+      ENTJ답게 다음 계획은<br>
+      이미 다 세워 뒀어요.<br>
+      그러니까…<br>
+      <b>다음엔 낮에, 정식으로 만나요.</b> 😤</p>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" id="wakeAnyway" style="display:none">그래도 깨워보기 😈</button>
+      <button class="btn" id="retry">다시 잠입하기 🔁</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  /* ================= SOUND (Web Audio synth, no files) ================= */
+  const A = {
+    ctx: null, out: null, nb: null, muted: false,
+    init() {
+      try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.out = this.ctx.createGain(); this.out.gain.value = .9; this.out.connect(this.ctx.destination);
+        const len = this.ctx.sampleRate * 2;
+        this.nb = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+        const d = this.nb.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      } catch (e) { this.ctx = null; }
+    },
+    ok() { return this.ctx && !this.muted; },
+    env(g, t0, dur, gain, attack) {
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(gain, t0 + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    },
+    noise(t0, dur, { type = 'bandpass', freq = 1000, q = 1, gain = .3, attack = .01 } = {}) {
+      const c = this.ctx, s = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+      s.buffer = this.nb; s.loop = true;
+      f.type = type; f.frequency.value = freq; f.Q.value = q;
+      this.env(g, t0, dur, gain, attack);
+      s.connect(f); f.connect(g); g.connect(this.out);
+      s.start(t0, Math.random()); s.stop(t0 + dur + .05);
+    },
+    tone(t0, dur, { freq = 440, to = null, type = 'sine', gain = .2, attack = .01, lp = null, vib = 0 } = {}) {
+      const c = this.ctx, o = c.createOscillator(), g = c.createGain();
+      o.type = type; o.frequency.setValueAtTime(freq, t0);
+      if (to) o.frequency.exponentialRampToValueAtTime(to, t0 + dur);
+      if (vib) {
+        const l = c.createOscillator(), lg = c.createGain();
+        l.frequency.value = 14; lg.gain.value = vib; l.connect(lg); lg.connect(o.frequency);
+        l.start(t0); l.stop(t0 + dur + .05);
+      }
+      this.env(g, t0, dur, gain, attack);
+      let node = o;
+      if (lp) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; o.connect(f); node = f; }
+      node.connect(g); g.connect(this.out);
+      o.start(t0); o.stop(t0 + dur + .05);
+    },
+    play(name) {
+      if (!this.ok()) return;
+      if (this.ctx.state === 'suspended') this.ctx.resume();
+      const t = this.ctx.currentTime;
+      switch (name) {
+        case 'creak':
+          this.tone(t, .35, { freq: 210, to: 150, type: 'sawtooth', gain: .05, lp: 900, vib: 25 });
+          break;
+        case 'paper':
+          for (let i = 0; i < 7; i++) this.noise(t + i * .05, .07, { type: 'highpass', freq: 3200, gain: .14 });
+          break;
+        case 'drawer':
+          for (let i = 0; i < 16; i++) this.noise(t + i * .03, .035, { freq: 1300 + Math.random() * 300, q: 3, gain: .45 });
+          this.tone(t + .5, .12, { freq: 90, type: 'square', gain: .12, lp: 400 });
+          break;
+        case 'laptop':
+          this.noise(t, .9, { type: 'lowpass', freq: 600, gain: .05, attack: .2 });
+          this.tone(t + .05, .25, { freq: 880, gain: .07 });
+          this.tone(t + .2, .4, { freq: 1320, gain: .06 });
+          break;
+        case 'chime':
+          this.tone(t, .35, { freq: 784, gain: .1 });
+          this.tone(t + .1, .5, { freq: 1175, gain: .09 });
+          break;
+        case 'snore':
+          this.noise(t, 1.5, { type: 'lowpass', freq: 450, gain: .16, attack: 1.0 });
+          this.tone(t + 1.6, 1.0, { freq: 62, type: 'sawtooth', gain: .16, attack: .15, lp: 380, vib: 6 });
+          this.noise(t + 1.6, 1.0, { freq: 320, q: 2, gain: .1, attack: .15 });
+          break;
+        case 'rustle':
+          for (let i = 0; i < 12; i++) this.noise(t + i * .07, .22, { freq: rand(700, 1700), q: .7, gain: .22 });
+          this.tone(t + .3, .25, { freq: 70, type: 'sine', gain: .25 });
+          break;
+        case 'mumble':
+          this.tone(t, .45, { freq: 210, to: 150, type: 'triangle', gain: .12, vib: 8 });
+          this.tone(t + .5, .5, { freq: 170, to: 230, type: 'triangle', gain: .1, vib: 8 });
+          break;
+        case 'heart':
+          for (let k = 0; k < 3; k++) {
+            this.tone(t + k * .75, .18, { freq: 58, gain: .55 });
+            this.tone(t + k * .75 + .22, .16, { freq: 52, gain: .35 });
+          }
+          break;
+        case 'scream':
+          this.tone(t, .35, { freq: 330, to: 900, type: 'sawtooth', gain: .16, lp: 2500, vib: 30 });
+          this.tone(t + .35, 1.1, { freq: 900, to: 480, type: 'sawtooth', gain: .16, lp: 2500, vib: 45 });
+          this.tone(t + .35, 1.1, { freq: 905, to: 470, type: 'square', gain: .05, lp: 2000, vib: 40 });
+          this.noise(t, .25, { freq: 200, gain: .4 });
+          break;
+        case 'lightswitch':
+          this.noise(t, .04, { type: 'highpass', freq: 2000, gain: .5 });
+          this.tone(t, .06, { freq: 1800, type: 'square', gain: .06 });
+          break;
+        case 'success':
+          [523, 659, 784, 1046].forEach((f, i) => this.tone(t + i * .11, .3, { freq: f, type: 'triangle', gain: .1 }));
+          break;
+      }
+    }
+  };
+  function say(text) {
+    if (A.muted || !('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'ko-KR'; u.rate = 1.3; u.pitch = 1.5; u.volume = 1;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+
+  /* ================= CONTENT ================= */
+  const CLUES = {
+    photo: {
+      title: '책상 위 액자', where: '책상 오른쪽 구석', noise: 10, sound: 'paper',
+      art: `<div class="polaroid"><div class="ph">🙌</div><span>SJ, 첫 PT 끝나고!</span></div>`,
+      story: `사진 뒷면에 또박또박 적힌 이름,<br><b>SJ LEE</b>. 이 방의 주인이다.<br>사진 속 표정이<br>"해냈다"를 온몸으로 말하고 있다.`,
+      fact: '🪪 이름: SJ LEE'
+    },
+    laptop: {
+      title: '켜진 채 잠든 노트북', where: '책상 위', noise: 14, sound: 'laptop',
+      art: `<div class="screen"><div class="bar">📁 브랜드캠페인_제안서_최종_진짜최종_v27.pptx</div><div class="slide">"한 줄이면 충분하다"</div><div class="postit">카피는 짧게,<br>인사이트는 깊게.</div></div>`,
+      story: `팬 소리가 웅— 하고 돈다.<br>화면엔 <b>광고 캠페인 제안서</b>.<br>파일명 뒤에 붙은 숫자가<br>이 사람의 지난 2주를 말해준다.`,
+      fact: '💼 직업: 광고기획자'
+    },
+    drawer: {
+      title: '책상 서랍', where: '책상 첫째 칸', noise: 34, sound: 'drawer',
+      art: `<div class="stamps">${'<i class="s">완뚝</i>'.repeat(12)}${'<i>🍜</i>'.repeat(3)}</div>`,
+      story: `드르르륵—<br><i>(너무 시끄러웠다…)</i><br>서랍 속엔 도장이 빼곡한<br><b>「평양냉면 도장깨기」</b> 수첩.<br>첫 장에 빨간 펜으로:<br><b>"식초·겨자 금지.<br>육수 먼저 한 모금."</b>`,
+      fact: '🍜 최애 음식: 평양냉면 (슴슴파)'
+    },
+    poster: {
+      title: '벽에 붙은 공연 포스터', where: '책상 위 벽', noise: 8, sound: 'paper',
+      art: `<img class="poster-img" src="poster.png" alt="연극 〈개의 심장〉 포스터">`,
+      story: `빛바랜 공연 포스터,<br>불가코프 원작의 <b>〈개의 심장〉</b>.<br>연출 칸에 적힌 이름은<br><b>SJ LEE</b>. 이 연극을 연출했다.<br>러시아 소설로 연극을 올렸다고…?`,
+      fact: '🎭 대학교 연극반 출신 (〈개의 심장〉 연출)'
+    },
+    calendar: {
+      title: '벽걸이 달력', where: '창문 옆 벽', noise: 10, sound: 'paper',
+      art: `<div class="cal"><header>OCTOBER</header><div class="g">${Array.from({length:35},(_,i)=>`<i style="background:${['#ffb3b3','#ffd8a8','#b3d9ff','#c6f0c2','#e0c6ff'][i%5]}"></i>`).join('')}</div><div class="sat">토) 09:00–09:30 휴식<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;09:30 다음 주 계획 세우기</div></div>`,
+      story: `빈칸이 <b>하나도 없다</b>.<br>휴식조차 30분 단위로 잡혀 있다.<br>맨 아래 적힌 문장:<br>"목표 없는 하루는<br>리허설 없는 공연이다."`,
+      fact: '🧭 MBTI: ENTJ (계획에 진심)'
+    },
+    trash: {
+      title: '휴지통', where: '책상 옆 바닥', noise: 18, sound: 'paper',
+      art: `<div class="crumple"><div><s>v3 · "한 그릇에 담은 진심"</s></div><div><s>v11 · "시원함, 그 이상"</s></div><div><s>v19 · "맛있으면 0칼로리"</s></div><div><s>v26 · "……"</s></div></div>`,
+      story: `구겨진 종이를 펴 보니<br>전부 <b>카피 시안</b>.<br>v1부터 v26까지<br>전부 줄이 그어져 있다.<br>쉽게 만족하지 않는 타입이다.`,
+      fact: '✍️ 보너스: v27까지 가는 끈기'
+    },
+    shelf: {
+      title: '침대 위 책 선반', where: '침대 머리맡 벽', noise: 16, sound: 'paper',
+      art: `<div class="books"><div class="pennant">🐯</div><div class="row"><i style="background:#8b2f2f;height:120px">죄와 벌</i><i style="background:#c9a227;height:126px;color:#222">안나 카레니나</i><i style="background:#2f4f8b;height:112px">러시아어 문법</i><i style="background:#3d6b4f;height:116px">과학기술과 사회</i><i style="background:#5b3d7a;height:104px">STS 입문</i><b>🪆</b></div></div>`,
+      story: `러시아 문학 책과 과학기술학 책이<br>한 칸에 나란히 꽂혀 있다.<br>밑줄과 메모가 빼곡한 걸 보니<br><b>전공 책</b> 같다.<br>"러시아 문학이랑… 과학기술학?<br>이걸 둘 다 공부했나 보다."`,
+      fact: '🎓 전공 추측: 노어노문학 + 과학기술학?'
+    }
+  };
+  const ORDER = ['photo', 'laptop', 'drawer', 'poster', 'shelf', 'calendar', 'trash'];
+  const TALK = [
+    '음냐… 식초는… 넣지 마…',
+    '그 카피… 한 줄로 줄여…',
+    '다음 분기 계획… 세워야…',
+    '투비… 오어 낫투비…',
+    '육수… 리필 되나요…',
+    '팀장님… 그건 v27에서…',
+    '으음… 누가… 서랍…?'
+  ];
+
+  /* ================= STATE ================= */
+  const S = { phase: 'intro', noise: 0, found: new Set(), modal: false, nextToss: 0, lastToss: 0, snoreT: null };
+  const body = document.body, svg = $('#room'), sleeper = $('#sleeper');
+
+  // calendar grid in SVG
+  (() => {
+    const colors = ['#ffb3b3', '#ffd8a8', '#b3d9ff', '#c6f0c2', '#e0c6ff'];
+    let html = '';
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++)
+      html += `<rect x="${973 + c * 20.5}" y="${142 + r * 28}" width="17" height="23" fill="${colors[(r * 7 + c) % 5]}"/>`;
+    $('#calGrid').innerHTML = html;
+  })();
+
+  function renderDossier() {
+    $('#dossierList').innerHTML = ORDER.map(id =>
+      S.found.has(id) ? `<li>${CLUES[id].fact}</li>` : `<li class="unknown">❓ ???</li>`).join('');
+    $('#foundCount').textContent = S.found.size;
+  }
+  renderDossier();
+
+  /* ================= FLASHLIGHT ================= */
+  const root = document.documentElement;
+  function setLight(x, y) { root.style.setProperty('--x', x + 'px'); root.style.setProperty('--y', y + 'px'); }
+  setLight(innerWidth / 2, innerHeight * .55);
+  // 터치: 끌어서 손전등 이동, 빛은 손가락보다 위에 비춘다 (손가락이 가리지 않게)
+  const TOUCH_LIFT = 80, TAP_SLOP = 12;
+  const touch = { x: 0, y: 0, dragged: false };
+  function aim(e) {
+    const lift = e.pointerType === 'touch' ? TOUCH_LIFT : 0;
+    setLight(e.clientX, e.clientY - lift);
+  }
+  const TOUCH_HINT = '손가락으로 끌어서 비추고, 톡 눌러서 조사하세요 🔦';
+  let touchHinted = false;
+  addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch') {
+      touch.x = e.clientX; touch.y = e.clientY; touch.dragged = false;
+      if (!touchHinted) { touchHinted = true; if (!S.found.size) $('#hint').textContent = TOUCH_HINT; }
+    }
+    aim(e);
+  });
+  addEventListener('pointermove', e => {
+    if (e.pointerType === 'touch' && Math.hypot(e.clientX - touch.x, e.clientY - touch.y) > TAP_SLOP) touch.dragged = true;
+    aim(e);
+  });
+  if (matchMedia('(pointer: coarse)').matches) { touchHinted = true; $('#hint').textContent = TOUCH_HINT; }
+
+  /* ================= UI HELPERS ================= */
+  function svgToScreen(x, y) {
+    const p = svg.createSVGPoint(); p.x = x; p.y = y;
+    return p.matrixTransform(svg.getScreenCTM());
+  }
+  let toastT;
+  function toast(msg, ms = 2200) {
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms);
+  }
+  function bubble(el, text, x, y, ms) {
+    const p = svgToScreen(x, y);
+    el.innerHTML = text;
+    const half = el.offsetWidth / 2 + 16;
+    el.style.left = Math.min(Math.max(p.x, half), innerWidth - half) + 'px';
+    el.style.top = Math.max(p.y, el.offsetHeight + 70) + 'px';
+    el.classList.add('show');
+    if (ms) setTimeout(() => el.classList.remove('show'), ms);
+  }
+  function warn(html, ms) {
+    const w = $('#warn'); w.innerHTML = html; w.classList.add('show');
+    if (ms) setTimeout(() => w.classList.remove('show'), ms);
+  }
+  function addNoise(n) {
+    S.noise = Math.min(100, S.noise + n);
+    updateMeter();
+  }
+  function updateMeter() {
+    $('#meterFill').style.width = S.noise + '%';
+    $('#meter').classList.toggle('hot', S.noise > 65);
+  }
+
+  /* ================= GAME FLOW ================= */
+  $('#startBtn').addEventListener('click', () => {
+    A.init();
+    A.play('creak');
+    $('#intro').classList.remove('show');
+    S.phase = 'play';
+    S.nextToss = performance.now() + rand(14000, 20000);
+    startSnore();
+    setTimeout(() => toast('쉿… 코 고는 소리가 들린다 😴'), 600);
+  });
+
+  function startSnore() {
+    clearInterval(S.snoreT);
+    A.play('snore');
+    S.snoreT = setInterval(() => { if (S.phase === 'play') A.play('snore'); }, 3800);
+  }
+
+  // clicks on hotspots
+  svg.addEventListener('click', e => {
+    if (touch.dragged) { touch.dragged = false; return; }  // 손전등을 끌다 뗀 건 조사가 아니다
+    const hot = e.target.closest('.hot');
+    if (S.phase === 'toss') {
+      addNoise(22); A.play('creak'); A.play('heart');
+      toast('😱 움직이지 말라니까!!');
+      return;
+    }
+    if (S.phase !== 'play' || S.modal) return;
+    if (!hot) { addNoise(3); A.play('creak'); return; }
+    const id = hot.dataset.id;
+    if (id === 'sleeper') return wake('poke');
+    if (id === 'door') return tryExit();
+    openClue(id);
+  });
+
+  function openClue(id) {
+    const c = CLUES[id];
+    A.play(c.sound);
+    addNoise(S.found.has(id) ? Math.round(c.noise / 2) : c.noise);
+    if (id === 'drawer') $('#drawer').classList.add('open');
+    const isNew = !S.found.has(id);
+    S.found.add(id);
+    $('#' + id).classList.add('found');
+    document.querySelector(`.check[data-for="${id}"]`).classList.add('on');
+    if (isNew) setTimeout(() => A.play('chime'), 350);
+    renderDossier();
+
+    $('#mTitle').textContent = c.title;
+    $('#mWhere').textContent = '📍 ' + c.where;
+    $('#mArt').innerHTML = c.art;
+    $('#mStory').innerHTML = c.story;
+    $('#mFact').textContent = (isNew ? '🔎 새로 알아낸 사실 — ' : '🔎 이미 아는 사실 — ') + c.fact;
+    S.modal = true;
+    $('#modal').classList.add('show');
+  }
+  $('#mClose').addEventListener('click', () => {
+    $('#modal').classList.remove('show');
+    S.modal = false;
+    $('#drawer').classList.remove('open');
+    if (S.noise >= 100) return wake('noise');
+    if (S.found.size === ORDER.length) {
+      $('#door').classList.add('ready');
+      $('#hint').textContent = '다 알아냈다! 문으로 조용히 빠져나가자 🚪';
+      toast('🎉 전부 알아냈다! 이제 문으로 탈출!', 3000);
+    } else {
+      $('#hint').textContent = `남은 단서 ${ORDER.length - S.found.size}개… 소음 게이지를 조심하세요 🤫`;
+    }
+  });
+
+  function tryExit() {
+    if (S.found.size < ORDER.length) {
+      toast(`아직 알아낼 게 남았다… (${S.found.size}/${ORDER.length})`);
+      return;
+    }
+    S.phase = 'end';
+    clearInterval(S.snoreT);
+    A.play('creak'); setTimeout(() => A.play('success'), 400);
+    showEnding('escape');
+  }
+
+  function toss() {
+    S.phase = 'toss';
+    S.lastToss = performance.now();
+    body.classList.add('freeze');
+    $('#zzz').classList.add('hide');
+    sleeper.classList.toggle('flip');
+    sleeper.classList.remove('tossing'); void sleeper.offsetWidth; sleeper.classList.add('tossing');
+    A.play('rustle');
+    setTimeout(() => { A.play('mumble'); A.play('heart'); }, 500);
+    warn('뒤척인다!! 얼음!!<small>아무것도 누르지 마세요…</small>');
+    setTimeout(() => bubble($('#talk'), pick(TALK), 1455, 505, 2600), 450);
+    setTimeout(() => {
+      if (S.phase !== 'toss') return;
+      if (S.noise >= 100) return wake('noise');
+      $('#warn').classList.remove('show');
+      body.classList.remove('freeze');
+      $('#zzz').classList.remove('hide');
+      S.noise = Math.max(0, S.noise - 30); updateMeter();
+      S.phase = 'play';
+      S.nextToss = performance.now() + rand(16000, 26000);
+      toast('휴… 다시 잠들었다 😮‍💨');
+    }, 2900);
+  }
+
+  function wake(reason) {
+    S.phase = 'caught';
+    clearInterval(S.snoreT);
+    $('#modal').classList.remove('show'); S.modal = false;
+    $('#warn').classList.remove('show'); $('#talk').classList.remove('show');
+    body.classList.remove('freeze');
+    $('#zzz').classList.add('hide');
+    sleeper.classList.remove('flip');
+    A.play('lightswitch');
+    setTimeout(() => {
+      body.classList.add('lit');
+      sleeper.classList.add('awake');
+      $('#stage').classList.add('shake');
+      $('#redflash').classList.add('go');
+      A.play('scream');
+      const line = reason === 'poke'
+        ? ['아 진짜!!! 지금 새벽 3시야!!!<br>왜 깨우고 난리야!!!', '아 진짜! 지금 새벽 세시야! 왜 깨우고 난리야!']
+        : ['누구야?!! 거기 누구야!!!<br>내 서랍은 왜 열려 있어?!', '누구야! 거기 누구야! 내 서랍은 왜 열려 있어!'];
+      bubble($('#shout'), line[0], 1380, 420);
+      setTimeout(() => say(line[1]), 250);
+    }, 250);
+    setTimeout(() => {
+      bubble($('#shout'), reason === 'poke' ? '내일 아침 9시에 PT라고!!!<br>나가!!!!! 😤' : '…ENTJ의 분노를 보여주마!!! 😤', 1380, 420);
+    }, 2600);
+    setTimeout(() => {
+      $('#shout').classList.remove('show');
+      $('#shout').style.display = 'none';
+      $('#stage').classList.remove('shake');
+      showEnding(reason);
+    }, 5000);
+  }
+
+  function showEnding(kind) {
+    const titles = {
+      poke: ['🚨 들켰다!', '자는 사람을 왜 찔렀어…<br>그것도 새벽 3시에.'],
+      noise: ['🚨 들켰다!', '너무 시끄러웠다.<br>서랍은 살살 열어야 한다.'],
+      escape: ['🌙 잠입 성공!', 'SJ는 아무것도 모른 채 자고 있다…<br>(아마도)']
+    };
+    $('#eTitle').textContent = titles[kind][0];
+    $('#eSub').innerHTML = titles[kind][1];
+    $('#eCount').textContent = `${S.found.size} / ${ORDER.length}`;
+    $('#endList').innerHTML = ORDER.map(id =>
+      S.found.has(id) ? `<li>✅ ${CLUES[id].fact}</li>` : `<li class="unknown">❓ 못 찾음 — ${CLUES[id].title}</li>`).join('');
+    $('#wakeAnyway').style.display = kind === 'escape' ? '' : 'none';
+    $('#ending').classList.add('show');
+  }
+  $('#retry').addEventListener('click', () => location.reload());
+  $('#wakeAnyway').addEventListener('click', () => {
+    $('#ending').classList.remove('show');
+    $('#door').classList.remove('ready');
+    S.phase = 'play';
+    S.nextToss = Infinity;
+    startSnore();
+    $('#hint').textContent = '…정말 깨울 거야? 침대를 눌러보세요 😈';
+    toast('살금살금… 다시 침대 옆으로 😈');
+  });
+
+  /* ================= LOOP ================= */
+  setInterval(() => {
+    if (S.phase !== 'play') return;
+    if (!S.modal) S.noise = Math.max(0, S.noise - .25);
+    updateMeter();
+    const now = performance.now();
+    if (S.modal) return;
+    if (S.noise >= 100) return wake('noise');
+    if ((S.noise >= 60 && now - S.lastToss > 6000) || now >= S.nextToss) toss();
+  }, 100);
+
+  /* ================= HUD BUTTONS ================= */
+  $('#muteBtn').addEventListener('click', e => {
+    A.muted = !A.muted;
+    e.currentTarget.textContent = A.muted ? '🔇' : '🔊';
+    if (A.muted && 'speechSynthesis' in window) speechSynthesis.cancel();
+  });
+  $('#fileBtn').addEventListener('click', () => $('#dossier').classList.toggle('show'));
+})();
+</script>
+</body>
